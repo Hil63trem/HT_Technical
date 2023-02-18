@@ -1,0 +1,216 @@
+# 02.01.2023
+pyspark --packages io.delta:delta-core_2.12:2.1.0 --conf "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension" --conf "spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog" 
+
+
+df = spark.read.format("delta").load("/tmp/myfirst-delta-table")
+
+
+
+cat miles2019tabded.txt miles2020tabded.txt miles2021tabded.txt miles2022tabded.txt > miles20alltabeded.txt
+# Header ausser 1.Zeile rausnehmhmen;  vi miles20alltabeded.txt  
+docker cp miles20alltabeded.txt spdelta033:/tmp/data/
+
+
+df = spark.read.format("csv").option("header","true").load("/tmp/data/miles20alltabeded.txt")
+df.show(50,False)
+
+>>> df.schema
+StructType([StructField('Datum  von     bis     A-Zeit  Leistung        Kurztext', StringType(), True)])
+
+
+del df
+
+columns = ['Datum'  'von'     'bis'     'A-Zeit'  'Leistung'        'Kurztext']
+dfnew = spark.read.format("csv").options(header='true',inferSchema='true').load("/tmp/data/miles20alltabeded.txt")
+dfnew.schema
+
+df = spark.read.format("csv").options(header='true',delimiters='\t',inferSchema='true').load("/tmp/data/miles20alltabeded.txt")
+
+
+
+
+schema2 = StructType() \
+      .add("RecordNumber",IntegerType(),True) \
+      .add("Zipcode",IntegerType(),True) \
+      .add("ZipCodeType",StringType(),True) \
+      .add("City",StringType(),True) \
+      .add("State",StringType(),True) \
+      .add("LocationType",StringType(),True) \
+      .add("Lat",DoubleType(),True) 
+	  
+df_with_schema = spark.read.format("csv") \
+      .option("header", True) \
+      .schema(schema) \
+      .load("/tmp/resources/zipcodes.csv")
+	  
+from pyspark.sql.types import StructType,StructField, StringType, IntegerType	  
+schema = StructType() \
+      .add("Datum",DateType(),True) \
+      .add("von",DateType(),True) \
+      .add("bis",DateType(),True) \
+      .add("A-Zeit",DateType(),True) \
+      .add("Leistung",StringType(),True) \
+      .add("Kurztext",StringType(),True)
+	  
+df_with_schema = spark.read.format("csv") \
+      ..options(header='true',delimiters='\t') \
+      .schema(schema) \
+      .load("/tmp/data/miles20alltabeded.txt")
+	  
+
+
+
+df = spark.read.format("delta").load("/tmp/data/miles20alltabeded.txt
+
+df.orderBy("Leistung").show(50,False)
+
+
+
+# 03.01.2023   Kreieren Temp View aus Dataframe und SQL-Abfragen
+
+cat miles2019tabded.txt miles2020tabded.txt miles2021tabded.txt miles2022tabded.txt > miles20alltabeded.txt
+# Header ausser 1.Zeile rausnehmhmen;  vi miles20alltabeded.txt  
+
+# Bearbeite Datei in den Container kopieren
+docker cp miles20alltabeded.txt spdelta033:/tmp/data/
+
+df = spark.read.format("csv").options(header='true',delimiters='\t',inferSchema='true').load("/tmp/data/miles20alltabeded.txt")
+df.schema
+df.printSchema()
+print(df.columns)
+
+
+# Dataframe erzeugen: So separiert er die Spalten!!!  sep='\t'
+df = spark.read.format("csv").options(header='true',sep='\t',inferSchema='true').load("/tmp/data/miles20alltabeded.txt")
+
+# Schema/Spalten des erzeugten Dataframes anzeigen
+df.schema
+df.printSchema()
+print(df.columns)
+
+# Nur bestimmte Spalten des Dataframe anzeigen:
+df.select(df.columns[1]).show(3)   ==> 1 Spalte
+df.select(df.columns[:3]).show(3)  ==> Spalten 1-3
+
+
+
+
+# Eine temporaere View auf den Dataframe erzeugen => Dann kann man mit Standard SQL weiterarbeiten! TOLL!!
+df.createTempView('view_milestemp')
+
+spark.sql('select * from view_milestemp').show(25,False)
+spark.sql('select count(*) from view_milestemp').show(25,False)
+
+spark.sql('select * from view_milestemp where LEISTUNG like "LS-UDB%"').show(25,False)
+spark.sql('select * from view_milestemp where LEISTUNG="LS-UDB: Administration (Linie)"').show(25,False)
+
+
+spark.sql('select Leistung, count(*) Events from view_milestemp group by 1 order by 1').show(50,False)
+
+# Formatierung:
+spark.sql('select Leistung, count(*) Events \
+  from view_milestemp \
+  group by 1 \
+  order by 1').show(50,False)
+
+spark.sql('select Leistung, count(*) Events from view_milestemp where to_date(Datum,"dd.mm.yyyy") between to_date("01.01.2021","dd.mm.yyyy") and to_date("31.12.2021","dd.mm.yyyy") group by 1 order by 1').show(50,False)
+
+# Formatiert:  ACHTUNG:  Kein Leerzeichen nach dem \
+spark.sql('select Leistung, count(*) Events \
+  from view_milestemp \
+  where to_date(Datum,"dd.mm.yyyy") between to_date("01.01.2021","dd.mm.yyyy") and to_date("31.12.2021","dd.mm.yyyy") \
+  group by 1 \
+  order by 1') \
+  .show(50,False)
+  
+  
+spark.sql('select Leistung, count(*) Events, sum(to_int(A-Zeit)) Aufwand \
+  from view_milestemp \
+  where to_date(Datum,"dd.mm.yyyy") between to_date("01.01.2021","dd.mm.yyyy") and to_date("31.12.2021","dd.mm.yyyy") \
+  group by 1 \
+  order by 1') \
+  .show(50,False)  
+  
+spark.sql('select Leistung,A-Zeit,hour(A-Zeit) from view_milestemp').show(25,False) 
+
+spark.sql('select Leistung,von,bis, \
+  (hour(bis)-hour(von))*60 + (minute(bis)-minute(von)) hh \
+  from view_milestemp \
+  where to_date(Datum,"dd.mm.yyyy") between to_date("01.01.2021","dd.mm.yyyy") and to_date("31.12.2021","dd.mm.yyyy") \
+    and Leistung is not NULL \
+  order by 1') \
+  .show(25,False)
+
+where to_date(Datum,"dd.mm.yyyy") between to_date("01.01.2021","dd.mm.yyyy") and to_date("31.12.2021","dd.mm.yyyy") \
+
+
+# Check:
+spark.sql('select *  from view_milestemp where to_date(Datum,"dd.mm.yyyy") between to_date("01.01.2022","dd.mm.yyyy") and to_date("31.12.2022","dd.mm.yyyy") and Leistung="Urlaub/Freizeit"').show(50,False)
+
+spark.sql('select Leistung, \
+  sum((hour(bis)-hour(von))*60 + (minute(bis)-minute(von))) Minuten, \
+  sum(((hour(bis)-hour(von))*60 + (minute(bis)-minute(von)))/60) Stunden, \
+  sum(((hour(bis)-hour(von))*60 + (minute(bis)-minute(von)))/(60*8)) ManTage \
+  from view_milestemp \
+  where to_date(Datum,"dd.mm.yyyy") between to_date("01.01.2022","dd.mm.yyyy") and to_date("31.12.2022","dd.mm.yyyy") \
+  group by 1 \
+  order by 1') \
+  .show(25,False)
+  
+  
+spark.sql('select Leistung, \
+  count(*) Tasks, \
+  sum((hour(bis)-hour(von))*60 + (minute(bis)-minute(von))) Minuten, \
+  sum(((hour(bis)-hour(von))*60 + (minute(bis)-minute(von)))/60) Stunden, \
+  round(sum(((hour(bis)-hour(von))*60 + (minute(bis)-minute(von)))/(60*8)),2) ManTage \
+  from view_milestemp \
+  where to_date(Datum,"dd.mm.yyyy")>to_date("31.12.2021","dd.mm.yyyy") \
+  group by 1 \
+  order by 1') \
+  .show(25,False)
+  
+  
+# Arbeitstage
+spark.sql('select sum(((hour(bis)-hour(von))*60 + (minute(bis)-minute(von)))/(60*8)) ManTage \
+  from view_milestemp \
+  where to_date(Datum,"dd.mm.yyyy")>to_date("31.12.2021","dd.mm.yyyy")').show(20,False)
+ 
+# Differenz zwischen Arbeitstagen (aus Kalender) und der Summe der Einzelleistungen:  253 == 257:  Das sind die Ueberstunden  
+
+
+
+SR-2370094 - PEWI4150 RAM Erweiterung auf 64 GB
+SR-2370093 - PEWI4150 Software-Installation - Visual Studio Code incl. Puppet Developer Kit
+
+-- 05.01.2023
+# timesheet als spark
+pyspark --packages io.delta:delta-core_2.12:2.1.0 --conf "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension" --conf "spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog"
+
+
+dftt = spark.read.format("csv").options(header='true',sep='\t',inferSchema='true').load("/tmp/data/timesheet20all.txt")
+
+dftt.printSchema()
+# 
+dftt.createTempView('view_timesheet')
+
+- ((extract(hour from LPAUSE)*60) + (extract(minute from LPAUSE))))/(60*8),3)  ATage_IST  -- Ende-Anfang-Pause in Minunten
+
+# Arbeitstage
+  
+spark.sql('select sum(((hour(bis)-hour(von))*60 + (minute(bis)-minute(von))-((hour(Pause)*60)+(minute(Pause))))/(60*8)) ManTage \
+  ,sum((hour(SollStunden)*60 + minute(Sollstunden)))/(60*8) SollTage \
+  from view_timesheet \
+  where to_date(Datum,"dd.mm.yyyy") <=to_date("31.12.2019","dd.mm.yyyy")').show(20,False)
+  
+  
+spark.sql('select sum(((hour(bis)-hour(von))*60 + (minute(bis)-minute(von))-((hour(Pause)*60)+(minute(Pause))))/(60*8)) ManTage \
+  ,sum((hour(SollStunden)*60 + minute(Sollstunden)))/(60*8) SollTage \
+  from view_timesheet \
+  where to_date(Datum,"dd.mm.yyyy") <=to_date("31.12.2019","dd.mm.yyyy")').show(20,False)  
+  
+# Gruppiert
+spark.sql('select year(to_date(Datum,"mm.dd.yyyy")) Jahr, sum(((hour(bis)-hour(von))*60 + (minute(bis)-minute(von))-((hour(Pause)*60)+(minute(Pause))))/(60*8)) ManTage \
+  ,sum((hour(SollStunden)*60 + minute(Sollstunden)))/(60*8) SollTage \
+  from view_timesheet \
+  group by year(to_date(Datum,"mm.dd.yyyy"))\
+  order by 1').show(20,False) 
