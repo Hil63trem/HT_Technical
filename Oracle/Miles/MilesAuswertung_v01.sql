@@ -15,7 +15,6 @@ create table miles001_rawdata (
    KOMMENTAR varchar2(500));
 
 -- drop table miles001_rawdata;
-
 -- truncate table miles001_rawdata;
 
 
