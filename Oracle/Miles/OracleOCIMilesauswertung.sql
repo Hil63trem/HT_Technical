@@ -31,6 +31,11 @@ update HTTIMESHEET set LLOCATION='Homo' where LLOCATION='Homo ';
   group by cube((extract(year from LDATUM)), llocation) 
   order by 1,2;
   
+ select extract(month from LDATUM) Jahr, llocation,count(*) anzahl
+  from HTTIMESHEET
+  group by cube((extract(month from LDATUM)), llocation) 
+  order by 1,2;  
+  
 select ldatum, httimesheet.llocation
 from httimesheet
 where llocation = 'Homo ' 
