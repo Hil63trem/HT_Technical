@@ -1,3 +1,5 @@
+-- 25.02.2023   Januar 2023 hinzuefuegt
+
 CREATE TABLE "HTMILES" (
   "LDATUM" DATE, 
   "LANFANG" TIMESTAMP (6), 
