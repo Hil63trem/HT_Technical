@@ -9,6 +9,8 @@ CREATE TABLE "HTMILES" (
   "LKURZTEXT" VARCHAR2(255 BYTE)
 );
 
+select * from htmiles order by ldatum desc;
+
 
 create table "HTTIMESHEET"(
   "LDATUM" DATE, 
