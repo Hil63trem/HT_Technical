@@ -11,6 +11,15 @@ CREATE TABLE "HTMILES" (
 
 select * from htmiles order by ldatum desc;
 
+select * from HTTIMESHEET 
+order by ldatum;
+
+-- Geht nicht
+select extract(month from ldatum),sum(LIST) LL
+from httimesheet
+where ldatum >to_date('31.12.2023','dd.mm.yyyy')
+group by extract(month from ldatum)
+order by 1;
 
 create table "HTTIMESHEET"(
   "LDATUM" DATE, 
@@ -35,12 +44,19 @@ update HTTIMESHEET set LLOCATION='Homo' where LLOCATION='Homo ';
   group by cube((extract(year from LDATUM)), llocation) 
   order by 1,2;
   
+  
  select extract(month from LDATUM) Jahr, llocation,count(*) anzahl
   from HTTIMESHEET
   group by cube((extract(month from LDATUM)), llocation) 
   order by 1,2;  
-  
-select ldatum, httimesheet.llocation
+
+select ldatum,llocation from httimesheet
+where ldatum >to_date('31.12.2022','dd.mm.yyyy')
+ order by 1;
+
+
+-- Korrektur falscher werte  
+select ldatum, httimesheet,llocation
 from httimesheet
 where llocation = 'Homo ' 
 -- and length(httimesheet.llocation) >4
